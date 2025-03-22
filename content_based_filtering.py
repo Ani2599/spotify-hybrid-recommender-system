@@ -99,12 +99,13 @@ def calculate_similarity_scores(input_vector, data):
     return similarity_scores
 
 
-def recommend(song_name, songs_data, transformed_data, k=10):
+def content_recommendation(song_name,artist_name,songs_data, transformed_data, k=10):
     """
     Recommends top k songs similar to the given song based on content-based filtering.
 
     Parameters:
     song_name (str): The name of the song to base the recommendations on.
+    artist_name (str): The name of the artist of the song.
     songs_data (DataFrame): The DataFrame containing song information.
     transformed_data (ndarray): The transformed data matrix for similarity calculations.
     k (int, optional): The number of similar songs to recommend. Default is 10.
@@ -112,36 +113,24 @@ def recommend(song_name, songs_data, transformed_data, k=10):
     Returns:
     DataFrame: A DataFrame containing the top k recommended songs with their names, artists, and Spotify preview URLs.
     """
-    # Convert song name to lowercase
+    # convert song name to lowercase
     song_name = song_name.lower()
-
-    # Filter the song from the dataset
-    song_row = songs_data.loc[songs_data["name"].str.lower() == song_name]
-
-    # Check if the song exists in the dataset
-    if song_row.empty:
-        raise ValueError(f"Song '{song_name}' not found in the dataset.")
-
-    # Get the index of the song
+    # convert the artist name to lowercase
+    artist_name = artist_name.lower()
+    # filter out the song from data
+    song_row = songs_data.loc[(songs_data["name"] == song_name) & (songs_data["artist"] == artist_name)]
+    # get the index of song
     song_index = song_row.index[0]
-
-    # Generate the input vector
-    input_vector = transformed_data[song_index].reshape(1, -1)
-
-    # Calculate similarity scores
+    # generate the input vector
+    input_vector = transformed_data[song_index].reshape(1,-1)
+    # calculate similarity scores
     similarity_scores = calculate_similarity_scores(input_vector, transformed_data)
-
-    # Exclude the input song from recommendations
-    similarity_scores[0, song_index] = -1  # Set its similarity score to -1 to exclude it
-
-    # Get the top k songs
-    top_k_songs_indexes = np.argsort(similarity_scores.ravel())[-k:][::-1]
-
-    # Get the top k songs' details
-    top_k_songs = songs_data.iloc[top_k_songs_indexes]
-
-    # Return the top k songs with their names, artists, and Spotify preview URLs
-    top_k_list = top_k_songs[['name', 'artist', 'spotify_preview_url']].reset_index(drop=True)
+    # get the top k songs
+    top_k_songs_indexes = np.argsort(similarity_scores.ravel())[-k-1:][::-1]
+    # get the top k songs names
+    top_k_songs_names = songs_data.iloc[top_k_songs_indexes]
+    # print the top k songs
+    top_k_list = top_k_songs_names[['name','artist','spotify_preview_url']].reset_index(drop=True)
     return top_k_list
 
 
