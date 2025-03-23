@@ -4,6 +4,7 @@ from content_based_filtering import content_recommendation
 from scipy.sparse import load_npz
 from numpy import load
 from collaborative_filtering import collaborative_recommendation
+from hybrid_recommendations import HybridRecommenderSystem as hrs
 
 # load the data
 cleaned_data_path = "data/cleaned_data.csv"
@@ -24,6 +25,10 @@ filtered_data = pd.read_csv(filtered_data_path)
 # load the interaction matrix
 interaction_matrix_path = "data/interaction_matrix.npz"
 interaction_matrix = load_npz(interaction_matrix_path)
+
+# load the transformed hybrid data
+transformed_hybrid_data_path = "data/transformed_hybrid_data.npz"
+transformed_hybrid_data = load_npz(transformed_hybrid_data_path)
 
 # Title
 st.title("Welcome to Spotify Song Recommender")
@@ -48,7 +53,11 @@ k = st.selectbox('How many recommendations do you want?',
                  key='k_select')
 
 # type of filtering with unique key
-filtering_type = st.selectbox('Select the type of filtering:', ['Content-Based Filtering', 'Collaborative Filtering'])
+filtering_type = st.selectbox(label= 'Select the type of filtering:', 
+                               options= ['Content-Based Filtering', 
+                                         'Collaborative Filtering',
+                                         "Hybrid Recommender System"],
+                               index= 2)
 
 # Button
 if filtering_type == 'Content-Based Filtering':
@@ -114,3 +123,51 @@ elif filtering_type == 'Collaborative Filtering':
                      st.write('---')
          else:
              st.write(f"Sorry, we couldn't find {song_name} in our database. Please try another song.")
+
+elif filtering_type == "Hybrid Recommender System":
+    if st.button('Get Recommendations'):
+        if ((filtered_data["name"].str.strip().str.lower() == song_name.strip()) & 
+            (filtered_data["artist"].str.strip().str.lower() == artist_name.strip())).any():
+            
+            st.write('Recommendations for', f"**{song_name}** by **{artist_name}**")
+            
+            # Call the Hybrid Recommender System
+            recommender = hrs(
+                song_name=song_name,
+                artist_name=artist_name,
+                number_of_recommendations=k,
+                weight_content_based=0.3,
+                weight_collaborative=0.7,
+                songs_data=filtered_data,
+                transformed_matrix=transformed_hybrid_data,
+                track_ids=track_ids,
+                interaction_matrix=interaction_matrix
+            )
+            
+            # Assuming `get_recommendations()` returns a DataFrame
+            recommendations = recommender.give_recommendations()
+            
+            # Display Recommendations
+            for ind, recommendation in recommendations.iterrows():
+                current_song = recommendation['name'].title()
+                current_artist = recommendation['artist'].title()
+                
+                if ind == 0:
+                    st.markdown("## Currently Playing")
+                    st.markdown(f"#### **{current_song}** by **{current_artist}**")
+                    if pd.notna(recommendation['spotify_preview_url']):
+                        st.audio(recommendation['spotify_preview_url'])
+                    st.write('---')
+                elif ind == 1:
+                    st.markdown("### Next Up 🎵")
+                    st.markdown(f"#### {ind}. **{current_song}** by **{current_artist}**")
+                    if pd.notna(recommendation['spotify_preview_url']):
+                        st.audio(recommendation['spotify_preview_url'])
+                    st.write('---')
+                else:
+                    st.markdown(f"#### {ind}. **{current_song}** by **{current_artist}**")
+                    if pd.notna(recommendation['spotify_preview_url']):
+                        st.audio(recommendation['spotify_preview_url'])
+                    st.write('---')
+        else:
+            st.error(f"Sorry, we couldn't find '{song_name}' by '{artist_name}' in our database. Please try another song.")             
